@@ -718,8 +718,8 @@ class PeerInfoHeadItem<Context: AccountContextProtocol>: GeneralRowItem {
             self.musicFile = nil
         }
 
-        if #available(macOS 10.15, *), !editing, threadId == nil, let user = peer as? TelegramUser, peerView.peerId.namespace == Namespaces.Peer.CloudUser,
-           user.id != context.peerId, let walletHooks = PeerInfoUIHooks.shared.wallet as? PeerInfoWalletHooks, walletHooks.hasWallet(context),
+        if #available(macOS 10.15, *), !editing, threadId == nil, peer is TelegramUser, peerView.peerId.namespace == Namespaces.Peer.CloudUser,
+           let walletHooks = PeerInfoUIHooks.shared.wallet as? PeerInfoWalletHooks, walletHooks.hasWallet(context),
            let walletCard = (peerView.cachedData as? CachedUserData)?.walletCard, walletCard.balance >= 100_000_000 {
             self.walletBalance = walletCard.balance
         } else {
