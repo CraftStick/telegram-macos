@@ -10406,6 +10406,11 @@ open class ChatController<Context: AccountContextProtocol>: TelegramGenericViewC
             }
         }
         
+        if result == .rejected, ChatInputUIHooks.shared.isEntertainmentSidebarVisible(context.window) {
+            chatInteraction.toggleSidebar()
+            return .invoked
+        }
+        
         return result
     }
     
