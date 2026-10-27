@@ -36,6 +36,7 @@ class PeerInfoArguments<Context: AccountContextProtocol> {
     let context: Context
     let isAd: Bool
     let pushViewController:(ViewController) -> Void
+    var isAvatarExpanded: Bool = false
     
     var peer: Peer? {
         didSet {
