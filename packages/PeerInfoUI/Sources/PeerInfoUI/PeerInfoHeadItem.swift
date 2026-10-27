@@ -2345,10 +2345,12 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
 
             var x: CGFloat = inset
             let useGlass = System.liquidGlass && (rowItem.nameColor != nil || rowItem.isAvatarExpanded) && rowItem.threadId == nil && !rowItem.editing
+            let buttonColor = rowItem.isAvatarExpanded ? NSColor.black.withAlphaComponent(0.3) : rowItem.actionColor
 
             for (i, item) in items.enumerated() {
                 let view = actionsView.subviews[i] as! ActionButton
-                view.updateAndLayout(item: item, bgColor: rowItem.actionColor, useGlass: useGlass)
+                let item = rowItem.isAvatarExpanded ? ActionItem(text: item.text, color: .white, image: item.image, animation: item.animation, destruct: item.destruct, action: item.action, subItems: item.subItems) : item
+                view.updateAndLayout(item: item, bgColor: buttonColor, useGlass: useGlass)
                 if item.subItems?.isEmpty == false, let menu = view.contextMenu {
                     view.contextMenu = {
                         return menu()
