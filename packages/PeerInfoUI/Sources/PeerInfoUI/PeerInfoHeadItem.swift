@@ -868,6 +868,11 @@ class PeerInfoHeadItem<Context: AccountContextProtocol>: GeneralRowItem {
             return
         }
         
+        if PeerInfoUIHooks.shared.hasActiveProfileMusic(context, peer.id) {
+            PeerInfoUIHooks.shared.showProfileMusicPlayerList(context, peer, musicFile, savedMusic, profileSavedMusic)
+            return
+        }
+        
         let controller = APProfileSavedController(context: context, peer: peer, profileMusicContext: profileSavedMusic, baseRate: FastSettings.playingRate, volume: FastSettings.volumeRate)
         
         PeerInfoUIHooks.shared.showInlineAudioPlayer(controller, context, self.table, nil)
