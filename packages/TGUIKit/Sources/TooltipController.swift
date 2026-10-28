@@ -2,8 +2,8 @@ import Cocoa
 import SwiftSignalKit
 import AppKit
 
-private func tooltipCornerRadius(for height: CGFloat) -> CGFloat {
-    return min(14, floor(height * 0.4))
+private func tooltipCornerRadius(for size: NSSize, arrowWidth: CGFloat) -> CGFloat {
+    return max(0, min(14, floor(size.height * 0.4), floor((size.width - arrowWidth) / 2)))
 }
 
 private final class TooltipView: View {
@@ -50,7 +50,7 @@ private final class TooltipView: View {
         self.cornerX = cornerX
         
         let point: NSPoint
-        let radius = tooltipCornerRadius(for: textContainer.frame.height)
+        let radius = tooltipCornerRadius(for: textContainer.frame.size, arrowWidth: cornerView.frame.width)
         if frame.width >= cornerView.frame.width + radius * 2 {
             point = NSMakePoint(max(min(cornerX - cornerView.frame.width / 2, frame.width - cornerView.frame.width - radius), radius), textContainer.frame.maxY)
         } else {
@@ -109,13 +109,13 @@ private final class TooltipView: View {
         let layout = TextViewLayout(text, alignment: alignment, alwaysStaticItems: true)
         layout.measure(width: maxWidth - (self.button != nil ? self.button!.frame.width + buttonSpacing : 0))
         textView.update(layout)
-        let containerHeight = max(layout.layoutSize.height + 8, button != nil ? 40 : 0)
-        let radius = tooltipCornerRadius(for: containerHeight)
+        let containerSize = NSMakeSize(max(40, layout.layoutSize.width + 18 + (self.button != nil ? self.button!.frame.width + buttonSpacing : 0)), max(layout.layoutSize.height + 8, button != nil ? 40 : 0))
+        let radius = tooltipCornerRadius(for: containerSize, arrowWidth: cornerView.frame.width)
         if animated, let layer = textContainer.layer, layer.cornerRadius != radius {
             layer.animate(from: NSNumber(value: Float(layer.cornerRadius)), to: NSNumber(value: Float(radius)), keyPath: "cornerRadius", timingFunction: .easeOut, duration: 0.2)
         }
         textContainer.layer?.cornerRadius = radius
-        textContainer.change(size: NSMakeSize(max(40, layout.layoutSize.width + 18 + (self.button != nil ? self.button!.frame.width + buttonSpacing : 0)), containerHeight), animated: animated)
+        textContainer.change(size: containerSize, animated: animated)
         change(size: NSMakeSize(textContainer.frame.width, textContainer.frame.height + 14), animated: animated)
         needsLayout = true
 
@@ -133,7 +133,7 @@ private final class TooltipView: View {
         } else {
             textView.center()
         }
-        let radius = tooltipCornerRadius(for: textContainer.frame.height)
+        let radius = tooltipCornerRadius(for: textContainer.frame.size, arrowWidth: cornerView.frame.width)
         if let cornerX = cornerX, frame.width >= cornerView.frame.width + radius * 2 {
             cornerView.setFrameOrigin(max(min(cornerX - cornerView.frame.width / 2, frame.width - cornerView.frame.width - radius), radius), textContainer.frame.maxY)
         } else {
