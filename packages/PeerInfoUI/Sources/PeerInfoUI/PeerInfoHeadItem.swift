@@ -412,7 +412,7 @@ private func actionItems<Context: AccountContextProtocol>(item: PeerInfoHeadItem
 class PeerInfoHeadItem<Context: AccountContextProtocol>: GeneralRowItem {
     override var height: CGFloat {
         if !editing && isAvatarExpanded {
-            var height = expandedAvatarHeight
+            var height = expandedAvatarHeight + inset.top + inset.bottom
             if hasProfileStrip {
                 height += PeerInfoMusicView.height(colorful: nameColor != nil)
             }
@@ -721,7 +721,7 @@ class PeerInfoHeadItem<Context: AccountContextProtocol>: GeneralRowItem {
     }
 
     fileprivate var effectiveStatusLayout: TextViewLayout {
-        return isAvatarExpanded ? overlayTextLayout(statusLayout, color: NSColor.white.withAlphaComponent(0.8)) : statusLayout
+        return isAvatarExpanded ? overlayTextLayout(statusLayout, color: NSColor.white.withAlphaComponent(0.8), alwaysStaticItems: true) : statusLayout
     }
     init(_ initialSize:NSSize, stableId:AnyHashable, context: Context, arguments: PeerInfoArguments<Context>, peerView:PeerView, threadData: MessageHistoryThreadData?, threadId: Int64?, stories: PeerExpiringStoryListContext.State? = nil, viewType: GeneralViewType, editing: Bool, updatingPhotoState:PeerInfoUpdatingPhotoState? = nil, updatePhoto:@escaping(NSImage?, Control?)->Void = { _, _ in }, giftsContext: ProfileGiftsContext? = nil, threadPeer: EnginePeer? = nil, savedMusic: ProfileSavedMusicContext.State? = nil, profileSavedMusic: ProfileSavedMusicContext? = nil) {
         let peer = peerViewMainPeer(peerView)
@@ -1051,10 +1051,10 @@ class PeerInfoHeadItem<Context: AccountContextProtocol>: GeneralRowItem {
 
 
 
-private func overlayTextLayout(_ layout: TextViewLayout, color: NSColor) -> TextViewLayout {
+private func overlayTextLayout(_ layout: TextViewLayout, color: NSColor, alwaysStaticItems: Bool = false) -> TextViewLayout {
     let attributed = NSMutableAttributedString(attributedString: layout.attributedString)
     attributed.addAttribute(.foregroundColor, value: color, range: NSMakeRange(0, attributed.length))
-    let result = TextViewLayout(attributed, maximumNumberOfLines: layout.maximumNumberOfLines)
+    let result = TextViewLayout(attributed, maximumNumberOfLines: layout.maximumNumberOfLines, alwaysStaticItems: alwaysStaticItems)
     result.interactions = layout.interactions
     result.measure(width: layout.layoutSize.width + 1)
     return result
@@ -1651,6 +1651,7 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
     private let photoContainer = Control(frame: NSMakeRect(0, 20, 120, 120))
     private let photoView: AvatarStoryControl = AvatarStoryControl(font: .avatar(30), size: NSMakeSize(120, 120))
     private var expandedPhotoView: TransformImageView?
+    private var expandedPhotoResourceId: MediaResourceId?
     private var expandedClipView: View?
     private var collapsingClipView: View?
     private var expandedBlurView: View?
@@ -1753,7 +1754,7 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
             if let item = self?.item as? PeerInfoHeadItem<Context> {
                 if let stories = item.stories, !stories.items.isEmpty {
                     item.openPeerStory()
-                } else if !item.isAvatarExpanded, item.canExpandAvatar {
+                } else if !item.isAvatarExpanded, item.canExpandAvatar, (item.table?.documentOffset.y ?? 0) <= 30 {
                     self?.setAvatarExpanded(true)
                 } else {
                     if let peer = item.peer, let _ = peer.largeProfileImage, self?.topicPhotoView == nil {
@@ -1804,16 +1805,6 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
         let circleRadius = photoContainer.frame.height / 2
         if expanded, let peer = item.peer {
             if self.expandedClipView == nil {
-                let image = TelegramMediaImage(imageId: MediaId(namespace: 0, id: 0), representations: peer.profileImageRepresentations, immediateThumbnailData: nil, reference: nil, partialReference: nil, flags: [])
-                let reference: ImageMediaReference
-                if let peerReference = PeerReference(peer) {
-                    reference = .avatarList(peer: peerReference, media: image)
-                } else {
-                    reference = .standalone(media: image)
-                }
-
-                let photoSignal = chatMessagePhoto(account: item.context.account, imageReference: reference, scale: backingScaleFactor)
-
                 let clipView = View(frame: photoContainer.bounds)
                 clipView.layer?.masksToBounds = true
                 let blurView = View(frame: photoContainer.bounds)
@@ -1829,6 +1820,30 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
                 photoContainer.addSubview(clipView)
                 self.expandedClipView = clipView
 
+                let photoView = TransformImageView(frame: clipView.bounds)
+                clipView.addSubview(photoView)
+                self.expandedPhotoView = photoView
+                self.expandedPhotoResourceId = nil
+
+                if animated {
+                    clipView.layer?.animate(from: NSNumber(value: Float(circleRadius)), to: NSNumber(value: 0), keyPath: "cornerRadius", timingFunction: .easeOut, duration: 0.25)
+                }
+                clipView.layer?.cornerRadius = 0
+            }
+            let resourceId = peer.largeProfileImage?.resource.id
+            if let photoView = self.expandedPhotoView, let blurView = self.expandedBlurView, resourceId != self.expandedPhotoResourceId {
+                self.expandedPhotoResourceId = resourceId
+
+                let image = TelegramMediaImage(imageId: MediaId(namespace: 0, id: 0), representations: peer.profileImageRepresentations, immediateThumbnailData: nil, reference: nil, partialReference: nil, flags: [])
+                let reference: ImageMediaReference
+                if let peerReference = PeerReference(peer) {
+                    reference = .avatarList(peer: peerReference, media: image)
+                } else {
+                    reference = .standalone(media: image)
+                }
+                photoView.setSignal(chatMessagePhoto(account: item.context.account, imageReference: reference, scale: backingScaleFactor))
+
+                blurView.layer?.contents = nil
                 if let resource = peer.largeProfileImage?.resource {
                     let signal = item.context.account.postbox.mediaBox.resourceData(resource)
                         |> filter { $0.complete }
@@ -1844,17 +1859,9 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
                     expandedBlurDisposable.set(signal.start(next: { [weak blurView] blurred in
                         blurView?.layer?.contents = blurred
                     }))
+                } else {
+                    expandedBlurDisposable.set(nil)
                 }
-
-                let photoView = TransformImageView(frame: clipView.bounds)
-                clipView.addSubview(photoView)
-                photoView.setSignal(photoSignal)
-                self.expandedPhotoView = photoView
-
-                if animated {
-                    clipView.layer?.animate(from: NSNumber(value: Float(circleRadius)), to: NSNumber(value: 0), keyPath: "cornerRadius", timingFunction: .easeOut, duration: 0.25)
-                }
-                clipView.layer?.cornerRadius = 0
             }
             if self.expandedShadeView == nil {
                 let shadeView = ExpandedAvatarShadeView(frame: .zero)
@@ -1898,6 +1905,7 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
             }
         }
         photoVideoView?.isHidden = expanded
+        updatePlayerIfNeeded()
         liveStreamView?.isHidden = expanded
         emojiSpawn?.isHidden = expanded
         spawnGiftsView.isHidden = expanded
@@ -2011,7 +2019,7 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
     }
     
     @objc func updatePlayerIfNeeded() {
-        let accept = window != nil && window!.isKeyWindow && !NSIsEmptyRect(visibleRect) && !isDynamicContentLocked
+        let accept = window != nil && window!.isKeyWindow && !NSIsEmptyRect(visibleRect) && !isDynamicContentLocked && (self.item as? PeerInfoHeadItem<Context>)?.isAvatarExpanded != true
         if let photoVideoPlayer = photoVideoPlayer {
             if accept {
                 photoVideoPlayer.play()
@@ -2046,11 +2054,11 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
         }
         avatarScrollHandlerWindow = window
         window.set(mouseHandler: { [weak self] event in
-            guard let self, self.window != nil, let item = self.item as? PeerInfoHeadItem<Context>, let table = item.table, !item.isAvatarExpanded, item.canExpandAvatar, event.scrollingDeltaY > 0, event.momentumPhase.isEmpty else {
+            guard let self, let window = self.window, let item = self.item as? PeerInfoHeadItem<Context>, let table = item.table, !item.isAvatarExpanded, item.canExpandAvatar, event.scrollingDeltaY > 0, event.momentumPhase.isEmpty else {
                 return .rejected
             }
             let point = table.convert(event.locationInWindow, from: nil)
-            if NSPointInRect(point, table.bounds), table.documentOffset.y <= 0 {
+            if NSPointInRect(point, table.bounds), table.documentOffset.y <= 0, let contentView = window.contentView, let hit = contentView.hitTest(contentView.convert(event.locationInWindow, from: nil)), hit.isDescendant(of: table) {
                 self.setAvatarExpanded(true)
             }
             return .rejected
@@ -2708,10 +2716,36 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
     
     
     override func interactionContentView(for innerId: AnyHashable, animateIn: Bool ) -> NSView {
+        if let expandedPhotoView {
+            if animateIn {
+                setExpandedOverlaysVisible(false, animated: false)
+                delay(0.6) { [weak self] in
+                    self?.setExpandedOverlaysVisible(true, animated: true)
+                }
+            }
+            return expandedPhotoView
+        }
         return photoView.avatar
+    }
+
+    override func interactionControllerDidFinishAnimation(interactive: Bool, innerId: AnyHashable) {
+        setExpandedOverlaysVisible(true, animated: true)
+    }
+
+    private func setExpandedOverlaysVisible(_ visible: Bool, animated: Bool) {
+        if visible, let item = self.item as? PeerInfoHeadItem<Context>, item.editing {
+            return
+        }
+        let views: [View?] = [expandedShadeView, nameView, statusContainer, actionsView, balanceView]
+        for view in views.compactMap({ $0 }) where view.layer?.opacity != (visible ? 1 : 0) {
+            view.change(opacity: visible ? 1 : 0, animated: animated)
+        }
     }
     
     override func copy() -> Any {
+        if let expandedPhotoView {
+            return expandedPhotoView.copy()
+        }
         return photoView.copy()
     }
     
