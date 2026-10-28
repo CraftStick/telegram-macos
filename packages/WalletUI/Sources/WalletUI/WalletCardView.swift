@@ -1791,7 +1791,7 @@ extension WalletCardView {
             if isDraggable {
                 NSCursor.openHand.set()
             } else {
-                NSCursor.pointingHand.set()
+                NSCursor.arrow.set()
             }
         case .none:
             if previous != nil || force {
