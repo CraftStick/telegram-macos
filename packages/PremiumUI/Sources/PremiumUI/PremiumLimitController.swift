@@ -649,7 +649,7 @@ public final class PremiumLimitView: View {
         self.desc.update(desc)
 
 //        top.layer?.cornerRadius = size.height / 2
-        accept.layer?.cornerRadius = 10
+        accept.layer?.cornerRadius = 20
     
         
         self.lineView.isHidden = context.premiumIsBlocked
