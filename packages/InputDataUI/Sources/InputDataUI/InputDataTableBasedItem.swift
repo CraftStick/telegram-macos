@@ -323,6 +323,7 @@ final class InputDataTableBasedItemView: TableRowView {
             return
         }
         container.frame = bounds.insetBy(dx: item.inset.left, dy: 0)
+        container.layer?.cornerRadius = min(container.frame.height / 2, 26)
         layoutRows(item.rows)
     }
     
