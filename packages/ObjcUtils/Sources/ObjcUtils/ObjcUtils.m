@@ -199,7 +199,7 @@ void TGDisableLayerActions(CALayer *layer) {
                 }];
             }
 
-            NSString *domainPattern = @"(?<![@\\w.-])[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\\.(?:dev|app|store|cloud|blog|live|pro|gg|by|kz)(?![\\w-]|\\.\\w)(?:/[^\\s]*[^\\s.,;:!?)\\]\"'>])?";
+            NSString *domainPattern = @"(?<![@\\w.%-])[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\\.(?:dev|app|store|cloud|blog|live|gg|by|kz)(?![\\w-]|\\.\\w)(?::[0-9]{1,5}(?![\\w]))?(?:/[^\\s]*[^\\s.,;:!?)\\]\"'>])?";
             NSRegularExpression *domainRegex = [NSRegularExpression regularExpressionWithPattern:domainPattern options:NSRegularExpressionCaseInsensitive error:&error];
             if (error) {
                 NSLog(@"Error creating regex: %@", error.localizedDescription);
