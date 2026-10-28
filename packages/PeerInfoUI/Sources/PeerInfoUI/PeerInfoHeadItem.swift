@@ -734,6 +734,9 @@ class PeerInfoHeadItem<Context: AccountContextProtocol>: GeneralRowItem {
         self.threadId = threadId
         self.giftsContext = giftsContext
         self.arguments = arguments
+        if editing {
+            arguments.isAvatarExpanded = false
+        }
         self.stories = stories
         self.savedMusic = savedMusic
         self.profileSavedMusic = profileSavedMusic
@@ -1800,9 +1803,13 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
         }
     }
 
+    private func collapsedPhotoCornerRadius(_ item: PeerInfoHeadItem<Context>) -> CGFloat {
+        return item.isForum ? photoView.frame.height / 3 : photoView.frame.height / 2
+    }
+
     private func updateExpandedPhoto(_ item: PeerInfoHeadItem<Context>, animated: Bool) {
         let expanded = item.isAvatarExpanded
-        let circleRadius = photoContainer.frame.height / 2
+        let circleRadius = collapsedPhotoCornerRadius(item)
         if expanded, let peer = item.peer {
             if self.expandedClipView == nil {
                 let clipView = View(frame: photoContainer.bounds)
@@ -1880,8 +1887,8 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
                     self.collapsingClipView = clipView
                     clipView.layer?.mask = nil
                     if !isScrollCollapsing {
-                        clipView.layer?.animate(from: NSNumber(value: 0), to: NSNumber(value: 60), keyPath: "cornerRadius", timingFunction: .easeOut, duration: 0.25)
-                        clipView.layer?.cornerRadius = 60
+                        clipView.layer?.animate(from: NSNumber(value: 0), to: NSNumber(value: Float(circleRadius)), keyPath: "cornerRadius", timingFunction: .easeOut, duration: 0.25)
+                        clipView.layer?.cornerRadius = circleRadius
                     }
                     delay(0.3) { [weak self, weak clipView] in
                         clipView?.removeFromSuperview()
@@ -1922,12 +1929,14 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
                 setAvatarExpanded(false, animated: false)
                 isScrollCollapsing = false
                 let delta = heightBefore - item.height
+                var scrolledBack: CGFloat = 0
                 if delta > 0 {
                     let offset = table.documentOffset
-                    table.clipView.scroll(to: NSMakePoint(offset.x, max(0, offset.y - delta)))
+                    scrolledBack = min(offset.y, delta)
+                    table.clipView.scroll(to: NSMakePoint(offset.x, offset.y - scrolledBack))
                 }
                 if let morphView, var start = morphStart {
-                    start.origin.y -= max(0, delta)
+                    start.origin.y -= scrolledBack
                     morphView.frame = photoContainer.convert(start, from: self)
                     let photoView = morphView.subviews.first
                     photoView?.frame = morphView.bounds
@@ -1937,8 +1946,9 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
                     if let photoView {
                         morphTransition.updateFrame(view: photoView, frame: target.size.bounds)
                     }
-                    morphView.layer?.animate(from: NSNumber(value: 0), to: NSNumber(value: Float(target.height / 2)), keyPath: "cornerRadius", timingFunction: .easeOut, duration: 0.3)
-                    morphView.layer?.cornerRadius = target.height / 2
+                    let radius = collapsedPhotoCornerRadius(item)
+                    morphView.layer?.animate(from: NSNumber(value: 0), to: NSNumber(value: Float(radius)), keyPath: "cornerRadius", timingFunction: .easeOut, duration: 0.3)
+                    morphView.layer?.cornerRadius = radius
                 }
             }
             let position = table.scrollPosition().current
