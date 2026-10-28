@@ -10351,8 +10351,6 @@ open class ChatController<Context: AccountContextProtocol>: TelegramGenericViewC
 //        return !context.closeFolderFirst
 //    }
     
-    private var isClosingEntertainmentSidebar = false
-
     public override func escapeKeyAction() -> KeyHandlerResult {
         
 //
@@ -10408,12 +10406,8 @@ open class ChatController<Context: AccountContextProtocol>: TelegramGenericViewC
             }
         }
         
-        if result == .rejected, !isClosingEntertainmentSidebar, mode != .preview, navigationController === context.bindings.rootNavigation(), ChatInputUIHooks.shared.isEntertainmentSidebarVisible(context.window) {
-            isClosingEntertainmentSidebar = true
+        if result == .rejected, FastSettings.sidebarShown, mode != .preview, navigationController === context.bindings.rootNavigation(), ChatInputUIHooks.shared.isEntertainmentSidebarVisible(context.window) {
             chatInteraction.toggleSidebar()
-            delay(0.35) { [weak self] in
-                self?.isClosingEntertainmentSidebar = false
-            }
             return .invoked
         }
         
