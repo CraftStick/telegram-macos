@@ -199,6 +199,19 @@ void TGDisableLayerActions(CALayer *layer) {
                 }];
             }
 
+            NSString *domainPattern = @"(?<![@\\w.-])[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\\.(?:dev|app|store|cloud|blog|live|pro|gg|by|kz)(?![\\w-]|\\.\\w)(?:/[^\\s]*[^\\s.,;:!?)\\]\"'>])?";
+            NSRegularExpression *domainRegex = [NSRegularExpression regularExpressionWithPattern:domainPattern options:NSRegularExpressionCaseInsensitive error:&error];
+            if (error) {
+                NSLog(@"Error creating regex: %@", error.localizedDescription);
+            } else {
+                [domainRegex enumerateMatchesInString:text options:0 range:NSMakeRange(0, text.length) usingBlock:^(NSTextCheckingResult *match, __unused NSMatchingFlags flags, __unused BOOL *stop) {
+                    @try {
+                        [results addObject:[NSValue valueWithRange:match.range]];
+                    } @catch (NSException *exception) {
+                    }
+                }];
+            }
+
             // Custom detection for TonConnect deep links (tg://?v=2&... / tc://?v=2&...): they carry the
             // query directly after the scheme with NO host, a form NSDataDetector never matches. The
             // trailing character class stops the match before sentence punctuation.
