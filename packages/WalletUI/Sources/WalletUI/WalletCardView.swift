@@ -534,6 +534,7 @@ public final class WalletCardView: View {
     var stickerSelectionCleared: (() -> Void)?
     var stickerGesture: ((NSEvent) -> Bool)?
     var stickerAvailabilityChanged: (() -> Void)?
+    var stickerDragAllowed: (() -> Bool)?
     private var giftStyle: WalletContext.CardGiftStyle?
     private var styleWaveHit = false
     private var accentColor: NSColor = walletCardSecondaryColor
@@ -698,6 +699,9 @@ public final class WalletCardView: View {
             startTiltEngine()
         } else {
             tiltAnimator?.isPaused = true
+            for id in Array(stickerPlayers.keys) {
+                stopSticker(id)
+            }
         }
         updateSurfaceClock()
     }
@@ -1645,6 +1649,12 @@ extension WalletCardView {
         layer.addSublayer(player)
         player.isPlayable = true
         setStickerGrow(id, grow, duration: 0.22)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self, weak player] in
+            guard let self, let player, self.stickerPlayers[id] === player else {
+                return
+            }
+            self.stopSticker(id)
+        }
     }
 
     private func updateStickerOutline(_ id: String, player: InlineStickerItemLayer, frame: CGImage) {
@@ -1768,6 +1778,7 @@ extension WalletCardView {
 
     fileprivate func updateStickerCursor(at point: NSPoint?, force: Bool = false) {
         let hit = acceptsStickers ? point.flatMap { stickerSelectionHit(at: $0) ?? (sticker(at: $0) != nil ? .body : nil) } : nil
+        let isDraggable = stickerDragAllowed?() ?? true
         guard hit != stickerCursor || force else {
             return
         }
@@ -1777,7 +1788,11 @@ extension WalletCardView {
         case .some(.handle):
             NSCursor.crosshair.set()
         case .some(.body):
-            NSCursor.openHand.set()
+            if isDraggable {
+                NSCursor.openHand.set()
+            } else {
+                NSCursor.pointingHand.set()
+            }
         case .none:
             if previous != nil || force {
                 NSCursor.arrow.set()

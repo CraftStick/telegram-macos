@@ -185,6 +185,10 @@ private final class WalletCollectablesGridView: View, WalletCollectablesGrid {
         return window != nil && !visibleRect.isEmpty && !isHiddenOrHasHiddenAncestor
     }
 
+    var isTabActive: Bool {
+        return window != nil && !isHiddenOrHasHiddenAncestor
+    }
+
     func setReturnScale(_ id: String, scale: CGFloat) {
         guard let tile = tiles.first(where: { $0.id == id }), let layer = tile.layer else { return }
         CATransaction.begin()

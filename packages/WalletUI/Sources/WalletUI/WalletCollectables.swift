@@ -139,6 +139,7 @@ protocol WalletCollectablesGrid: NSView {
     func updateTiles(animated: Bool)
     var visibleGiftIds: [String] { get }
     var isShown: Bool { get }
+    var isTabActive: Bool { get }
     func setModelWiggle(_ id: String, angle: CGFloat, scale: CGFloat)
     func setReturnScale(_ id: String, scale: CGFloat)
 }
@@ -280,6 +281,9 @@ final class WalletCollectablesStage {
             }
             card.stickerGesture = { [weak self] event in
                 return self?.twist(event) ?? false
+            }
+            card.stickerDragAllowed = { [weak self] in
+                return self?.gridView?.isTabActive == true
             }
             card.stickerAvailabilityChanged = { [weak self] in
                 self?.availabilityChanged()
@@ -621,7 +625,7 @@ final class WalletCollectablesStage {
         guard drag == nil, edit == nil, !isHeld(id) else {
             return true
         }
-        guard gridView?.isShown == true else {
+        guard gridView?.isTabActive == true else {
             if placements.contains(where: { $0.gift.address == id }) {
                 cardView?.playSticker(id, account: context.account, grow: 1.22)
             }
