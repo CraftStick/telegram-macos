@@ -1907,7 +1907,7 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
                 }
             }
             expandedBlurDisposable.set(nil)
-            let fadeOut = animated || isScrollCollapsing
+            let fadeOut = animated
             if let view = self.expandedBlurView {
                 performSubviewRemoval(view, animated: fadeOut)
                 self.expandedBlurView = nil
@@ -2069,12 +2069,19 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
         }
         avatarScrollHandlerWindow = window
         window.set(mouseHandler: { [weak self] event in
-            guard let self, let window = self.window, let item = self.item as? PeerInfoHeadItem<Context>, let table = item.table, !item.isAvatarExpanded, item.canExpandAvatar, event.scrollingDeltaY > 0, event.momentumPhase.isEmpty else {
+            guard let self, let window = self.window, let item = self.item as? PeerInfoHeadItem<Context>, let table = item.table, item.canExpandAvatar, event.momentumPhase.isEmpty else {
                 return .rejected
             }
             let point = table.convert(event.locationInWindow, from: nil)
-            if NSPointInRect(point, table.bounds), table.documentOffset.y <= 0, let contentView = window.contentView, let hit = contentView.hitTest(contentView.convert(event.locationInWindow, from: nil)), hit.isDescendant(of: table) {
-                self.setAvatarExpanded(true)
+            guard NSPointInRect(point, table.bounds), let contentView = window.contentView, let hit = contentView.hitTest(contentView.convert(event.locationInWindow, from: nil)), hit.isDescendant(of: table) else {
+                return .rejected
+            }
+            if !item.isAvatarExpanded {
+                if event.scrollingDeltaY > 0, table.documentOffset.y <= 0 {
+                    self.setAvatarExpanded(true)
+                }
+            } else if event.scrollingDeltaY < -4 {
+                self.setAvatarExpanded(false)
             }
             return .rejected
         }, with: self, for: .scrollWheel, priority: .low)
