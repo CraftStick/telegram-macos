@@ -1063,14 +1063,20 @@ private func overlayTextLayout(_ layout: TextViewLayout, color: NSColor, alwaysS
     return result
 }
 
+private let expandedPhotoBlurContext = CIContext(options: nil)
+
 private func expandedPhotoBlur(path: String) -> CGImage? {
-    guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil), let image = CGImageSourceCreateImageAtIndex(source, 0, nil), image.width > 10 else {
+    guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil) else {
+        return nil
+    }
+    let options: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true, kCGImageSourceThumbnailMaxPixelSize: 320]
+    guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary), image.width > 10 else {
         return nil
     }
     let input = CIImage(cgImage: image)
     let extent = input.extent.insetBy(dx: -input.extent.width * 0.5, dy: 0)
     let blurred = input.clampedToExtent().applyingGaussianBlur(sigma: Double(image.width) / 24).cropped(to: extent)
-    return CIContext(options: nil).createCGImage(blurred, from: extent)
+    return expandedPhotoBlurContext.createCGImage(blurred, from: extent)
 }
 
 private final class ExpandedAvatarShadeView: View {
@@ -1916,7 +1922,6 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
         liveStreamView?.isHidden = expanded
         emojiSpawn?.isHidden = expanded
         spawnGiftsView.isHidden = expanded
-        photoContainer.scaleOnClick = !expanded
     }
 
     private func updateSpawnerFraction() {
@@ -2613,7 +2618,7 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
         
         self.updateSpawnerFraction()
         
-        self.photoVideoView?.layer?.cornerRadius = item.isForum ? self.photoView.frame.height / 3 : self.photoView.frame.height / 2
+        self.photoVideoView?.layer?.cornerRadius = collapsedPhotoCornerRadius(item)
         
         updateExpandedPhoto(item, animated: animated)
 
@@ -2728,9 +2733,14 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
     override func interactionContentView(for innerId: AnyHashable, animateIn: Bool ) -> NSView {
         if let expandedPhotoView {
             if animateIn {
+                overlayRestoreToken += 1
+                let token = overlayRestoreToken
                 setExpandedOverlaysVisible(false, animated: false)
                 delay(0.6) { [weak self] in
-                    self?.setExpandedOverlaysVisible(true, animated: true)
+                    guard let self, self.overlayRestoreToken == token else {
+                        return
+                    }
+                    self.setExpandedOverlaysVisible(true, animated: true)
                 }
             }
             return expandedPhotoView
@@ -2738,7 +2748,10 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
         return photoView.avatar
     }
 
+    private var overlayRestoreToken = 0
+
     override func interactionControllerDidFinishAnimation(interactive: Bool, innerId: AnyHashable) {
+        overlayRestoreToken += 1
         setExpandedOverlaysVisible(true, animated: true)
     }
 
