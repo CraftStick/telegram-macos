@@ -57,7 +57,7 @@ public struct PeerInfoUIHooks {
     public let showDisableSharingModal: (any AccountContextProtocol, PeerId, @escaping (Bool) -> Void) -> Void
     public let showInlineAudioPlayer: (APController, any AccountContextProtocol, TableView?, TableView?) -> Void
     public let showProfileMusicPlayerList: (any AccountContextProtocol, EnginePeer, TelegramMediaFile, ProfileSavedMusicContext.State, ProfileSavedMusicContext) -> Void
-    public let activeProfileMusic: (any AccountContextProtocol, PeerId) -> (state: ProfileSavedMusicContext.State, context: ProfileSavedMusicContext)?
+    public let activeProfileMusic: (any AccountContextProtocol, PeerId) -> (state: ProfileSavedMusicContext.State, context: ProfileSavedMusicContext, playing: TelegramMediaFile?)?
     public let executeNftLink: (String, String, any AccountContextProtocol) -> Void
     public let navigateToChat: (NavigationViewController?, any AccountContextProtocol, ChatLocation, ChatMode, ChatFocusTarget?, Atomic<ChatLocationContextHolder?>?) -> Void
     public var navigateToChatWithContext: ((NavigationViewController?, any AccountContextProtocol, ChatLocation, ChatMode, ChatFocusTarget?, Atomic<ChatLocationContextHolder?>?) -> Void)?
@@ -77,7 +77,7 @@ public struct PeerInfoUIHooks {
                 showDisableSharingModal: @escaping (any AccountContextProtocol, PeerId, @escaping (Bool) -> Void) -> Void,
                 showInlineAudioPlayer: @escaping (APController, any AccountContextProtocol, TableView?, TableView?) -> Void,
                 showProfileMusicPlayerList: @escaping (any AccountContextProtocol, EnginePeer, TelegramMediaFile, ProfileSavedMusicContext.State, ProfileSavedMusicContext) -> Void,
-                activeProfileMusic: @escaping (any AccountContextProtocol, PeerId) -> (state: ProfileSavedMusicContext.State, context: ProfileSavedMusicContext)?,
+                activeProfileMusic: @escaping (any AccountContextProtocol, PeerId) -> (state: ProfileSavedMusicContext.State, context: ProfileSavedMusicContext, playing: TelegramMediaFile?)?,
                 executeNftLink: @escaping (String, String, any AccountContextProtocol) -> Void,
                 navigateToChat: @escaping (NavigationViewController?, any AccountContextProtocol, ChatLocation, ChatMode, ChatFocusTarget?, Atomic<ChatLocationContextHolder?>?) -> Void,
                 wallet: Any?) {
