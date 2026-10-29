@@ -868,8 +868,8 @@ class PeerInfoHeadItem<Context: AccountContextProtocol>: GeneralRowItem {
             return
         }
         
-        if PeerInfoUIHooks.shared.hasActiveProfileMusic(context, peer.id) {
-            PeerInfoUIHooks.shared.showProfileMusicPlayerList(context, peer, musicFile, savedMusic, profileSavedMusic)
+        if let active = PeerInfoUIHooks.shared.activeProfileMusic(context, peer.id) {
+            PeerInfoUIHooks.shared.showProfileMusicPlayerList(context, peer, musicFile, active.state, active.context)
             return
         }
         
