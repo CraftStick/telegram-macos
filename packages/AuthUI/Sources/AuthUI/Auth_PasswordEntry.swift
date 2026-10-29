@@ -194,9 +194,6 @@ private final class Auth_PasswordEntryInputView : View, NSTextFieldDelegate {
         field.usesSingleLineMode = true
         field.isBezeled = false
         field.delegate = self
-        if #available(macOS 11.0, *) {
-            field.contentType = .password
-        }
         let hint = self.hint ?? ""
         field.placeholderAttributedString = .initialize(string: hint.isEmpty ? strings().loginNewPasswordPlaceholder : hint, color: theme.colors.grayText, font: .normal(.text))
     }
