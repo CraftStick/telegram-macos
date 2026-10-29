@@ -10,6 +10,7 @@ import TelegramContext
 import TelegramTheme
 import Localization
 import TelegramUtils
+import Carbon
 
 private final class Auth_PasswordEntryHeaderView : View {
     private let playerView:LottiePlayerView = LottiePlayerView()
@@ -72,9 +73,92 @@ private final class Auth_PasswordEntryHeaderView : View {
     }
 }
 
+private final class Auth_PasswordInputSourceGuard {
+    private var previous: TISInputSource?
+    private var observer: NSObjectProtocol?
+
+    private static func property(_ source: TISInputSource, _ key: CFString) -> AnyObject? {
+        return TISGetInputSourceProperty(source, key).map { Unmanaged<AnyObject>.fromOpaque($0).takeUnretainedValue() }
+    }
+
+    private static func isEnglish(_ source: TISInputSource) -> Bool {
+        let languages = property(source, kTISPropertyInputSourceLanguages) as? [String]
+        return languages?.first == "en"
+    }
+
+    private static func englishLayout() -> TISInputSource? {
+        let filter = [kTISPropertyInputSourceType as String: kTISTypeKeyboardLayout as String]
+        let sources = TISCreateInputSourceList(filter as CFDictionary, false)?.takeRetainedValue() as? [TISInputSource] ?? []
+        return sources.first(where: { isEnglish($0) && (property($0, kTISPropertyInputSourceIsSelectCapable) as? Bool) == true })
+    }
+
+    private func enforce() {
+        let selected = TISCopyCurrentKeyboardInputSource().takeRetainedValue()
+        guard !Auth_PasswordInputSourceGuard.isEnglish(selected), let english = Auth_PasswordInputSourceGuard.englishLayout() else {
+            return
+        }
+        TISSelectInputSource(english)
+    }
+
+    func activate() {
+        guard observer == nil else {
+            return
+        }
+        previous = TISCopyCurrentKeyboardInputSource().takeRetainedValue()
+        enforce()
+        observer = DistributedNotificationCenter.default().addObserver(forName: NSNotification.Name(kTISNotifySelectedKeyboardInputSourceChanged as String), object: nil, queue: .main, using: { [weak self] _ in
+            self?.enforce()
+        })
+    }
+
+    func deactivate() {
+        guard let observer = observer else {
+            return
+        }
+        DistributedNotificationCenter.default().removeObserver(observer)
+        self.observer = nil
+        if let previous = previous {
+            TISSelectInputSource(previous)
+        }
+        previous = nil
+    }
+
+    deinit {
+        deactivate()
+    }
+}
+
+private func restrictToLatinInputSources(_ field: NSTextField) {
+    (field.currentEditor() as? NSTextView)?.inputContext?.allowedInputSourceLocales = [NSAllRomanInputSourcesLocaleIdentifier]
+}
+
+private final class Auth_PasswordSecureField : NSSecureTextField {
+    let inputSourceGuard = Auth_PasswordInputSourceGuard()
+    override func becomeFirstResponder() -> Bool {
+        let result = super.becomeFirstResponder()
+        if result {
+            restrictToLatinInputSources(self)
+            inputSourceGuard.activate()
+        }
+        return result
+    }
+}
+
+private final class Auth_PasswordPlainField : NSTextField {
+    let inputSourceGuard = Auth_PasswordInputSourceGuard()
+    override func becomeFirstResponder() -> Bool {
+        let result = super.becomeFirstResponder()
+        if result {
+            restrictToLatinInputSources(self)
+            inputSourceGuard.activate()
+        }
+        return result
+    }
+}
+
 private final class Auth_PasswordEntryInputView : View, NSTextFieldDelegate {
-    private let secureField: NSSecureTextField = NSSecureTextField()
-    private let plainField: NSTextField = NSTextField()
+    private let secureField: NSSecureTextField = Auth_PasswordSecureField()
+    private let plainField: NSTextField = Auth_PasswordPlainField()
     private let revealButton: ImageButton = ImageButton()
     private var isRevealed: Bool = false
     private var hint: String?
@@ -165,6 +249,12 @@ private final class Auth_PasswordEntryInputView : View, NSTextFieldDelegate {
     
     public func controlTextDidChange(_ obj: Notification) {
         self.takeError?()
+    }
+
+    public func controlTextDidEndEditing(_ obj: Notification) {
+        (obj.userInfo?["NSFieldEditor"] as? NSTextView)?.inputContext?.allowedInputSourceLocales = nil
+        (obj.object as? Auth_PasswordSecureField)?.inputSourceGuard.deactivate()
+        (obj.object as? Auth_PasswordPlainField)?.inputSourceGuard.deactivate()
     }
     
     public func update(locked: Bool, hint: String?, invoke: @escaping()->Void, takeError:@escaping()->Void) {
