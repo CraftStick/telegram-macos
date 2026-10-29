@@ -1662,7 +1662,6 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
     private var collapsingClipView: View?
     private var expandedBlurView: View?
     private var isScrollCollapsing = false
-    private var isDroppingExpandedDecorations = false
     private let expandedBlurDisposable = MetaDisposable()
     private var expandedShadeView: ExpandedAvatarShadeView?
     private var liveStreamView: ImageView?
@@ -1889,7 +1888,6 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
                 self.expandedPhotoView = nil
                 if animated || isScrollCollapsing {
                     self.collapsingClipView = clipView
-                    clipView.layer?.mask = nil
                     if !isScrollCollapsing {
                         clipView.layer?.animate(from: NSNumber(value: 0), to: NSNumber(value: Float(circleRadius)), keyPath: "cornerRadius", timingFunction: .easeOut, duration: 0.25)
                         clipView.layer?.cornerRadius = circleRadius
@@ -1905,19 +1903,17 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
                 }
             }
             expandedBlurDisposable.set(nil)
-            let fadeOut = animated && !isDroppingExpandedDecorations
             if let view = self.expandedBlurView {
-                performSubviewRemoval(view, animated: fadeOut)
+                performSubviewRemoval(view, animated: false)
                 self.expandedBlurView = nil
             }
             if let view = self.expandedShadeView {
-                performSubviewRemoval(view, animated: fadeOut)
+                performSubviewRemoval(view, animated: false)
                 self.expandedShadeView = nil
             }
         }
         photoVideoView?.isHidden = expanded
         updatePlayerIfNeeded()
-        liveStreamView?.isHidden = expanded
         emojiSpawn?.isHidden = expanded
         spawnGiftsView.isHidden = expanded
     }
@@ -2081,9 +2077,7 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
             } else {
                 let delta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.scrollingDeltaY * 10
                 if delta < -4 {
-                    self.isDroppingExpandedDecorations = true
                     self.setAvatarExpanded(false)
-                    self.isDroppingExpandedDecorations = false
                 }
             }
             return .rejected
