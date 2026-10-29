@@ -2070,15 +2070,17 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
             guard NSPointInRect(point, table.bounds), let contentView = window.contentView, let hit = contentView.hitTest(contentView.convert(event.locationInWindow, from: nil)), hit.isDescendant(of: table) else {
                 return .rejected
             }
+            let scale: CGFloat = event.hasPreciseScrollingDeltas ? 1 : 10
+            let deltaY = event.scrollingDeltaY * scale
+            guard abs(deltaY) > abs(event.scrollingDeltaX * scale) else {
+                return .rejected
+            }
             if !item.isAvatarExpanded {
-                if event.scrollingDeltaY > 0, table.documentOffset.y <= 0 {
+                if deltaY > 4, table.documentOffset.y <= 0 {
                     self.setAvatarExpanded(true)
                 }
-            } else {
-                let delta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.scrollingDeltaY * 10
-                if delta < -4 {
-                    self.setAvatarExpanded(false)
-                }
+            } else if deltaY < -4 {
+                self.setAvatarExpanded(false)
             }
             return .rejected
         }, with: self, for: .scrollWheel, priority: .low)
