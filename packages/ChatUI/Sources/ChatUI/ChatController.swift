@@ -10407,6 +10407,9 @@ open class ChatController<Context: AccountContextProtocol>: TelegramGenericViewC
         }
         
         if result == .rejected, FastSettings.sidebarShown, mode != .preview, navigationController === context.bindings.rootNavigation(), ChatInputUIHooks.shared.isEntertainmentSidebarVisible(context.window) {
+            if ChatInputUIHooks.shared.escapeEntertainmentSidebar(context.window) {
+                return .invoked
+            }
             chatInteraction.toggleSidebar()
             return .invoked
         }
