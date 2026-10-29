@@ -199,7 +199,7 @@ void TGDisableLayerActions(CALayer *layer) {
                 }];
             }
 
-            NSString *domainPattern = @"(?<![@\\w.%/-])[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\\.(?:dev|store|cloud|blog|live|gg|by|kz)(?![\\w-]|\\.\\w)(?::[0-9]{1,5}(?![\\w]))?(?:/[^\\s]*[^\\s.,;:!?)\\]\"'>])?";
+            NSString *domainPattern = @"(?<![@\\w.%/-])(?!(?:this|self|ctx|super|cls|window|document|global|module|exports|props|state|config|data|obj|args|req|res|err|opts|options|e)\\.(?:dev|store|cloud|blog|live|gg|by|kz)(?![\\w-]|\\.\\w))[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\\.(?:dev|store|cloud|blog|live|gg|by|kz)(?![\\w-]|\\.\\w)(?::[0-9]{1,5}(?![\\w]))?(?:/[^\\s]*[^\\s.,;:!?)\\]}\"'>\\u201D\\u2019\\u00BB\\u2026\\u3002\\uFF0C\\u3001\\uFF1B\\uFF1A\\uFF01\\uFF1F\\uFF09\\u3011\\u300B\\u300D\\u300F])?";
             NSRegularExpression *domainRegex = [NSRegularExpression regularExpressionWithPattern:domainPattern options:0 error:&error];
             if (error) {
                 NSLog(@"Error creating regex: %@", error.localizedDescription);
