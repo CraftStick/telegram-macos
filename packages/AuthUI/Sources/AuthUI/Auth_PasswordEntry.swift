@@ -76,6 +76,8 @@ private final class Auth_PasswordEntryHeaderView : View {
 private final class Auth_PasswordInputSourceGuard {
     private var previous: TISInputSource?
     private var observer: NSObjectProtocol?
+    private var applicationObservers: [NSObjectProtocol] = []
+    private var isRequested = false
 
     private static func property(_ source: TISInputSource, _ key: CFString) -> AnyObject? {
         return TISGetInputSourceProperty(source, key).map { Unmanaged<AnyObject>.fromOpaque($0).takeUnretainedValue() }
@@ -93,6 +95,9 @@ private final class Auth_PasswordInputSourceGuard {
     }
 
     private func enforce() {
+        guard NSApp.isActive else {
+            return
+        }
         let selected = TISCopyCurrentKeyboardInputSource().takeRetainedValue()
         guard !Auth_PasswordInputSourceGuard.isEnglish(selected), let english = Auth_PasswordInputSourceGuard.englishLayout() else {
             return
@@ -100,7 +105,7 @@ private final class Auth_PasswordInputSourceGuard {
         TISSelectInputSource(english)
     }
 
-    func activate() {
+    private func start() {
         guard observer == nil else {
             return
         }
@@ -111,7 +116,7 @@ private final class Auth_PasswordInputSourceGuard {
         })
     }
 
-    func deactivate() {
+    private func stop() {
         guard let observer = observer else {
             return
         }
@@ -121,6 +126,34 @@ private final class Auth_PasswordInputSourceGuard {
             TISSelectInputSource(previous)
         }
         previous = nil
+    }
+
+    func activate() {
+        guard !isRequested else {
+            return
+        }
+        isRequested = true
+        applicationObservers = [
+            NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main, using: { [weak self] _ in
+                self?.start()
+            }),
+            NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main, using: { [weak self] _ in
+                self?.stop()
+            })
+        ]
+        if NSApp.isActive {
+            start()
+        }
+    }
+
+    func deactivate() {
+        guard isRequested else {
+            return
+        }
+        isRequested = false
+        applicationObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        applicationObservers = []
+        stop()
     }
 
     deinit {
