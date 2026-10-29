@@ -36,7 +36,20 @@ class PeerInfoArguments<Context: AccountContextProtocol> {
     let context: Context
     let isAd: Bool
     let pushViewController:(ViewController) -> Void
-    var isAvatarExpanded: Bool = false
+    private let avatarExpandedLock = NSLock()
+    private var avatarExpandedValue: Bool = false
+    var isAvatarExpanded: Bool {
+        get {
+            avatarExpandedLock.lock()
+            defer { avatarExpandedLock.unlock() }
+            return avatarExpandedValue
+        }
+        set {
+            avatarExpandedLock.lock()
+            avatarExpandedValue = newValue
+            avatarExpandedLock.unlock()
+        }
+    }
     
     var peer: Peer? {
         didSet {

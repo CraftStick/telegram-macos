@@ -734,9 +734,6 @@ class PeerInfoHeadItem<Context: AccountContextProtocol>: GeneralRowItem {
         self.threadId = threadId
         self.giftsContext = giftsContext
         self.arguments = arguments
-        if editing {
-            arguments.isAvatarExpanded = false
-        }
         self.stories = stories
         self.savedMusic = savedMusic
         self.profileSavedMusic = profileSavedMusic
@@ -1665,6 +1662,7 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
     private var collapsingClipView: View?
     private var expandedBlurView: View?
     private var isScrollCollapsing = false
+    private var isDroppingExpandedDecorations = false
     private let expandedBlurDisposable = MetaDisposable()
     private var expandedShadeView: ExpandedAvatarShadeView?
     private var liveStreamView: ImageView?
@@ -1907,7 +1905,7 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
                 }
             }
             expandedBlurDisposable.set(nil)
-            let fadeOut = animated
+            let fadeOut = animated && !isDroppingExpandedDecorations
             if let view = self.expandedBlurView {
                 performSubviewRemoval(view, animated: fadeOut)
                 self.expandedBlurView = nil
@@ -2080,8 +2078,13 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
                 if event.scrollingDeltaY > 0, table.documentOffset.y <= 0 {
                     self.setAvatarExpanded(true)
                 }
-            } else if event.scrollingDeltaY < -4 {
-                self.setAvatarExpanded(false)
+            } else {
+                let delta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.scrollingDeltaY * 10
+                if delta < -4 {
+                    self.isDroppingExpandedDecorations = true
+                    self.setAvatarExpanded(false)
+                    self.isDroppingExpandedDecorations = false
+                }
             }
             return .rejected
         }, with: self, for: .scrollWheel, priority: .low)
@@ -2404,6 +2407,10 @@ private final class PeerInfoHeadView<Context: AccountContextProtocol> : GeneralC
         
         guard let item = item as? PeerInfoHeadItem<Context> else {
             return
+        }
+        
+        if item.arguments.isAvatarExpanded && !item.canExpandAvatar {
+            item.arguments.isAvatarExpanded = false
         }
         
         spawnGiftsView.change(opacity: item.editing ? 0 : 1, animated: animated)
