@@ -75,85 +75,46 @@ private final class Auth_PasswordEntryHeaderView : View {
 
 private final class Auth_PasswordInputSourceGuard {
     private var previous: TISInputSource?
-    private var observer: NSObjectProtocol?
-    private var applicationObservers: [NSObjectProtocol] = []
-    private var isRequested = false
-
-    private static func property(_ source: TISInputSource, _ key: CFString) -> AnyObject? {
-        return TISGetInputSourceProperty(source, key).map { Unmanaged<AnyObject>.fromOpaque($0).takeUnretainedValue() }
-    }
 
     private static func isEnglish(_ source: TISInputSource) -> Bool {
-        let languages = property(source, kTISPropertyInputSourceLanguages) as? [String]
+        guard let value = TISGetInputSourceProperty(source, kTISPropertyInputSourceLanguages) else {
+            return false
+        }
+        let languages = Unmanaged<AnyObject>.fromOpaque(value).takeUnretainedValue() as? [String]
         return languages?.first == "en"
     }
 
     private static func englishLayout() -> TISInputSource? {
         let filter = [kTISPropertyInputSourceType as String: kTISTypeKeyboardLayout as String]
         let sources = TISCreateInputSourceList(filter as CFDictionary, false)?.takeRetainedValue() as? [TISInputSource] ?? []
-        return sources.first(where: { isEnglish($0) && (property($0, kTISPropertyInputSourceIsSelectCapable) as? Bool) == true })
+        return sources.first(where: { source in
+            guard isEnglish(source), let value = TISGetInputSourceProperty(source, kTISPropertyInputSourceIsSelectCapable) else {
+                return false
+            }
+            return (Unmanaged<AnyObject>.fromOpaque(value).takeUnretainedValue() as? Bool) == true
+        })
     }
 
-    private func enforce() {
-        guard NSApp.isActive else {
+    // Selects an English layout once when the field gets focus. Any other layout can still be
+    // picked afterwards, so passwords with non-Latin characters can be typed.
+    func activate() {
+        guard previous == nil else {
             return
         }
         let selected = TISCopyCurrentKeyboardInputSource().takeRetainedValue()
         guard !Auth_PasswordInputSourceGuard.isEnglish(selected), let english = Auth_PasswordInputSourceGuard.englishLayout() else {
             return
         }
+        previous = selected
         TISSelectInputSource(english)
     }
 
-    private func start() {
-        guard observer == nil else {
-            return
-        }
-        previous = TISCopyCurrentKeyboardInputSource().takeRetainedValue()
-        enforce()
-        observer = DistributedNotificationCenter.default().addObserver(forName: NSNotification.Name(kTISNotifySelectedKeyboardInputSourceChanged as String), object: nil, queue: .main, using: { [weak self] _ in
-            self?.enforce()
-        })
-    }
-
-    private func stop() {
-        guard let observer = observer else {
-            return
-        }
-        DistributedNotificationCenter.default().removeObserver(observer)
-        self.observer = nil
-        if let previous = previous {
-            TISSelectInputSource(previous)
-        }
-        previous = nil
-    }
-
-    func activate() {
-        guard !isRequested else {
-            return
-        }
-        isRequested = true
-        applicationObservers = [
-            NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main, using: { [weak self] _ in
-                self?.start()
-            }),
-            NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main, using: { [weak self] _ in
-                self?.stop()
-            })
-        ]
-        if NSApp.isActive {
-            start()
-        }
-    }
-
     func deactivate() {
-        guard isRequested else {
+        guard let previous = previous else {
             return
         }
-        isRequested = false
-        applicationObservers.forEach { NotificationCenter.default.removeObserver($0) }
-        applicationObservers = []
-        stop()
+        self.previous = nil
+        TISSelectInputSource(previous)
     }
 
     deinit {
@@ -161,16 +122,11 @@ private final class Auth_PasswordInputSourceGuard {
     }
 }
 
-private func restrictToLatinInputSources(_ field: NSTextField) {
-    (field.currentEditor() as? NSTextView)?.inputContext?.allowedInputSourceLocales = [NSAllRomanInputSourcesLocaleIdentifier]
-}
-
 private final class Auth_PasswordSecureField : NSSecureTextField {
     let inputSourceGuard = Auth_PasswordInputSourceGuard()
     override func becomeFirstResponder() -> Bool {
         let result = super.becomeFirstResponder()
         if result {
-            restrictToLatinInputSources(self)
             inputSourceGuard.activate()
         }
         return result
@@ -182,7 +138,6 @@ private final class Auth_PasswordPlainField : NSTextField {
     override func becomeFirstResponder() -> Bool {
         let result = super.becomeFirstResponder()
         if result {
-            restrictToLatinInputSources(self)
             inputSourceGuard.activate()
         }
         return result
@@ -282,7 +237,6 @@ private final class Auth_PasswordEntryInputView : View, NSTextFieldDelegate {
     }
 
     public func controlTextDidEndEditing(_ obj: Notification) {
-        (obj.userInfo?["NSFieldEditor"] as? NSTextView)?.inputContext?.allowedInputSourceLocales = nil
         (obj.object as? Auth_PasswordSecureField)?.inputSourceGuard.deactivate()
         (obj.object as? Auth_PasswordPlainField)?.inputSourceGuard.deactivate()
     }
