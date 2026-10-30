@@ -4275,10 +4275,7 @@ open class ChatController<Context: AccountContextProtocol>: TelegramGenericViewC
                     let _ = previousMaxIncomingMessageIdByNamespace.swap([:])
                     return
                 }
-                // A user whose chat still shows the report and block panel is not trusted yet: nothing
-                // is read until the panel is dismissed or a message is sent to them. The index is not
-                // stored, so it is read once the peer view reports that the panel is gone.
-                if let cachedData = (view as? PeerView)?.cachedData as? CachedUserData, cachedData.isSuspiciousPeer {
+                if let cachedData = (view as? PeerView)?.cachedData as? CachedUserData, cachedData.peerStatusSettings?.flags.contains(.canReport) == true {
                     return
                 }
                 if canRead && !hasModals(context.window) {
