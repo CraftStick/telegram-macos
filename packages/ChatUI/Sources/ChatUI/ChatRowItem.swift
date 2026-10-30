@@ -2784,7 +2784,8 @@ public class ChatRowItem: TableRowItem {
                     paid = false
                 }
                 if let attribute = attribute as? ReplyMarkupMessageAttribute, attribute.flags.contains(.inline) {
-                    if message.restrictedText(context.contentSettings) == nil {
+                    // The buttons of a message from a user whose chat shows the report and block panel stay hidden.
+                    if message.restrictedText(context.contentSettings) == nil, entry.additionalData.canHighlightLinks || !isIncoming {
                         if !message.hasExtendedMedia {
                             let xtrAmount: Int64?
                             if let invoice = message.anyMedia as? TelegramMediaInvoice, invoice.currency == XTR {
