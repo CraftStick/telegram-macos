@@ -1342,7 +1342,6 @@ public class ChatListRowItem: TableRowItem {
         }
         
         if let openMiniApp {
-            // The pill is 16 pt wider than its text; the rest keeps the message text off its edge.
             w += openMiniApp.layoutSize.width + 28
         }
         

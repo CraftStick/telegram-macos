@@ -3536,7 +3536,6 @@ public class ChatListRowView: TableRowView, RevealTableView {
                 offset += theme.icons.pinnedImage.systemSize.width + 5
             }
             
-            // Centered on the row of the pin, which sits at the bottom edge and is shorter than the pill.
             let rowHeight = theme.icons.pinnedImage.backingSize.height
             let centerY = frame.height - (item.margin + 1) - rowHeight / 2
             openMiniApp.setFrameOrigin(NSMakePoint(frame.width - openMiniApp.frame.width - offset, floorToScreenPixels(centerY - openMiniApp.frame.height / 2)))
