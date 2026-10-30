@@ -95,10 +95,10 @@ private final class Auth_PasswordInputSourceGuard {
         })
     }
 
-    // Selects an English layout once when the field gets focus. Any other layout can still be
-    // picked afterwards, so passwords with non-Latin characters can be typed.
+    var isPaused = false
+
     func activate() {
-        guard previous == nil else {
+        guard previous == nil, !isPaused else {
             return
         }
         let selected = TISCopyCurrentKeyboardInputSource().takeRetainedValue()
@@ -110,7 +110,7 @@ private final class Auth_PasswordInputSourceGuard {
     }
 
     func deactivate() {
-        guard let previous = previous else {
+        guard let previous = previous, !isPaused else {
             return
         }
         self.previous = nil
@@ -123,22 +123,22 @@ private final class Auth_PasswordInputSourceGuard {
 }
 
 private final class Auth_PasswordSecureField : NSSecureTextField {
-    let inputSourceGuard = Auth_PasswordInputSourceGuard()
+    var inputSourceGuard: Auth_PasswordInputSourceGuard?
     override func becomeFirstResponder() -> Bool {
         let result = super.becomeFirstResponder()
         if result {
-            inputSourceGuard.activate()
+            inputSourceGuard?.activate()
         }
         return result
     }
 }
 
 private final class Auth_PasswordPlainField : NSTextField {
-    let inputSourceGuard = Auth_PasswordInputSourceGuard()
+    var inputSourceGuard: Auth_PasswordInputSourceGuard?
     override func becomeFirstResponder() -> Bool {
         let result = super.becomeFirstResponder()
         if result {
-            inputSourceGuard.activate()
+            inputSourceGuard?.activate()
         }
         return result
     }
@@ -147,6 +147,7 @@ private final class Auth_PasswordPlainField : NSTextField {
 private final class Auth_PasswordEntryInputView : View, NSTextFieldDelegate {
     private let secureField: NSSecureTextField = Auth_PasswordSecureField()
     private let plainField: NSTextField = Auth_PasswordPlainField()
+    private let inputSourceGuard = Auth_PasswordInputSourceGuard()
     private let revealButton: ImageButton = ImageButton()
     private var isRevealed: Bool = false
     private var hint: String?
@@ -163,6 +164,10 @@ private final class Auth_PasswordEntryInputView : View, NSTextFieldDelegate {
         addSubview(secureField)
         addSubview(plainField)
         addSubview(revealButton)
+        (secureField as? Auth_PasswordSecureField)?.inputSourceGuard = inputSourceGuard
+        (plainField as? Auth_PasswordPlainField)?.inputSourceGuard = inputSourceGuard
+        NotificationCenter.default.addObserver(self, selector: #selector(applicationDidResignActive), name: NSApplication.didResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(applicationDidBecomeActive), name: NSApplication.didBecomeActiveNotification, object: nil)
         plainField.isHidden = true
         revealButton.autohighlight = false
         revealButton.scaleOnClick = true
@@ -205,7 +210,25 @@ private final class Auth_PasswordEntryInputView : View, NSTextFieldDelegate {
         revealButton.setAccessibilityLabel(isRevealed ? strings().voiceOverCommonHide : strings().voiceOverCommonShow)
     }
     
+    @objc private func applicationDidResignActive() {
+        inputSourceGuard.deactivate()
+    }
+    
+    @objc private func applicationDidBecomeActive() {
+        if activeField.currentEditor() != nil {
+            inputSourceGuard.activate()
+        }
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
     private func toggleReveal() {
+        inputSourceGuard.isPaused = true
+        defer {
+            inputSourceGuard.isPaused = false
+        }
         let previous = activeField
         let editor = previous.currentEditor()
         let hadFocus = editor != nil
@@ -240,8 +263,7 @@ private final class Auth_PasswordEntryInputView : View, NSTextFieldDelegate {
     }
 
     public func controlTextDidEndEditing(_ obj: Notification) {
-        (obj.object as? Auth_PasswordSecureField)?.inputSourceGuard.deactivate()
-        (obj.object as? Auth_PasswordPlainField)?.inputSourceGuard.deactivate()
+        inputSourceGuard.deactivate()
     }
     
     public func update(locked: Bool, hint: String?, invoke: @escaping()->Void, takeError:@escaping()->Void) {
